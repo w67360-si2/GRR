@@ -458,9 +458,15 @@ elseif(isset($Err) && $Err == 'y') // traitement d'une erreur sur une nouvelle r
     $rep_day[6] = $rep_opt[6] != '0';
   }
   $d['etype']   = isset($type)? $type : 0;
-  $d['quantite_empruntee'] = isset($_POST['quantite_empruntee'])? intval($_POST['quantite_empruntee']) : 1;
-}
-else // nouvelle réservation
+  $qte_post = isset($_POST['quantite_empruntee'])? $_POST['quantite_empruntee'] : 1;
+  if (is_array($qte_post)) {
+	  $d['quantite_empruntee'] = 1;
+	  $d['quantite_empruntee_post'] = $qte_post;
+  } else {
+	  $d['quantite_empruntee'] = intval($qte_post);
+  }
+ }
+ else // nouvelle réservation
 {
   if ($enable_periods == 'y')
     $duration = 60; // une période = une minute à partir de midi
@@ -588,6 +594,38 @@ if ($d['type_ressource'] == 1 && isset($start_time) && isset($end_time)) {
 	$d['stock_disponible'] = null;
 }
 
+// Per-room data for multi-resource granular booking
+$d['rooms_data'] = [];
+if (count($rooms) > 1) {
+	$ignore_id = ($id > 0) ? $id : 0;
+	$room_ids = array_map('intval', $rooms);
+	$sql_rooms = "SELECT id, room_name, type_ressource, inventaire_qte FROM ".TABLE_PREFIX."_room WHERE id IN (".implode(',', $room_ids).")";
+	$res_rooms = grr_sql_query($sql_rooms);
+	if ($res_rooms) {
+		foreach ($res_rooms as $r) {
+			$room_entry = [
+				'id' => $r['id'],
+				'name' => $r['room_name'],
+				'type_ressource' => intval($r['type_ressource']),
+				'inventaire_qte' => intval($r['inventaire_qte']),
+				'quantite_empruntee' => 1,
+				'stock_disponible' => null,
+			];
+			if ($r['type_ressource'] == 1 && isset($start_time) && isset($end_time)) {
+				$sql_stock = "SELECT COALESCE(SUM(quantite_empruntee), 0) FROM ".TABLE_PREFIX."_entry
+					WHERE start_time < '".$end_time."' AND end_time > '".$start_time."'
+					AND room_id = '".$r['id']."' AND supprimer = 0";
+				if ($ignore_id > 0)
+					$sql_stock .= " AND id != '".$ignore_id."'";
+				$deja_reserve = grr_sql_query1($sql_stock);
+				if ($deja_reserve < 0) $deja_reserve = 0;
+				$room_entry['stock_disponible'] = $r['inventaire_qte'] - $deja_reserve;
+			}
+			$d['rooms_data'][] = $room_entry;
+		}
+		grr_sql_free($res_rooms);
+	}
+}
 
 /** éléments à insérer dans le formulaire
  * Partie Benéficiaire
@@ -759,7 +797,7 @@ grr_sql_free($res);
 * Ressources
 */
 $tab_rooms_noaccess = SecuAccess::ResourcesNotBookingForUser($user_name);
-$sql = "SELECT id, room_name, description FROM ".TABLE_PREFIX."_room WHERE area_id=$area_id ";
+$sql = "SELECT id, room_name, description, type_ressource, inventaire_qte FROM ".TABLE_PREFIX."_room WHERE area_id=$area_id ";
 foreach ($tab_rooms_noaccess as $key)
 {
   $sql .= " and id != $key ";
@@ -771,16 +809,25 @@ if ($res)
 {
     $d['taille_champ_res'] = min($longueur_liste_ressources_max,$len);
     $d['optionsRessource'] = "";
+    $d['roomTypesJS'] = [];
+    $d['roomNamesJS'] = [];
+    $d['roomStocksJS'] = [];
     foreach($res as $row)
   {
     $selected = "";
     if ($row['id'] == $room_id)
       $selected = 'selected="selected"';
     $d['optionsRessource'] .= '<option '.$selected.' value="'.$row['id'].'" title="'.$row['description'].'">'.$row['room_name'].'</option>';
+    $d['roomTypesJS'][$row['id']] = $row['type_ressource'];
+    $d['roomNamesJS'][$row['id']] = $row['room_name'];
+    $d['roomStocksJS'][$row['id']] = $row['inventaire_qte'];
   }
 }
 grr_sql_free($res);
 
+$d['roomTypesJSON'] = json_encode($d['roomTypesJS']);
+$d['roomNamesJSON'] = json_encode($d['roomNamesJS']);
+$d['roomStocksJSON'] = json_encode($d['roomStocksJS']);
 
 $d['complementJSchangeRooms'] = "";
 
@@ -801,7 +848,7 @@ if ($res)
     }
   }
   // modification proposée par Eric Marie (Github)
-  $sql2 = "SELECT area_id, id, room_name FROM ".TABLE_PREFIX."_room WHERE area_id IN ('" . implode("', '", $ids) . "')";
+  $sql2 = "SELECT area_id, id, room_name, type_ressource, inventaire_qte FROM ".TABLE_PREFIX."_room WHERE area_id IN ('" . implode("', '", $ids) . "')";
   $tab_rooms_noaccess = SecuAccess::ResourcesNotBookingForUser($user_name);
   foreach($tab_rooms_noaccess as $key)
   {
@@ -815,7 +862,7 @@ if ($res)
   {
     foreach($res2 as $row2)
     {
-      $results[$row2['area_id']][] = [$row2['id'], $row2['room_name']];
+      $results[$row2['area_id']][] = [$row2['id'], $row2['room_name'], $row2['type_ressource'], $row2['inventaire_qte']];
     }
     foreach($results as $areaId => $rows2) {
       $d['complementJSchangeRooms'] .= "      case \"".$areaId."\":\n";
@@ -823,6 +870,9 @@ if ($res)
       $i = 0;
       foreach($rows2 as $row2) {
         $d['complementJSchangeRooms'] .= "roomsObj.options[$i] = new Option(\"".str_replace('"','\\"',$row2[1])."\",".$row2[0] .")\n";
+        $d['complementJSchangeRooms'] .= "roomTypes[".$row2[0]."] = ".$row2[2].";\n";
+        $d['complementJSchangeRooms'] .= "roomNames[".$row2[0]."] = \"".str_replace('"','\\"',$row2[1])."\";\n";
+        $d['complementJSchangeRooms'] .= "roomStocks[".$row2[0]."] = ".$row2[3].";\n";
         $i++;
       }
       $d['complementJSchangeRooms'] .= "roomsObj.options[0].selected = true\n";

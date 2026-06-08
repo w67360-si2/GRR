@@ -161,7 +161,7 @@
 
 					<div class="E form-inline">
 						<label for="rooms[]" class="control-label">{{trad.rooms}} {{trad.deux_points}}</label>
-						<select class="form-control" id="rooms[]" name="rooms[]" size="{{d.taille_champ_res}}" multiple="multiple">
+						<select class="form-control" id="rooms[]" name="rooms[]" size="{{d.taille_champ_res}}" multiple="multiple" onchange="updateQuantiteFields(this);">
 							{{d.optionsRessource |raw}}
 						</select>
 						&nbsp; {{trad.ctrl_click}}
@@ -201,7 +201,24 @@
 						<input name="nbparticipantmax" type="hidden" value="0" />	
 					{% endif %}
 
-				<!-- Quantité (ressources granulaires) -->
+			<!-- Quantité (ressources granulaires) -->
+				<div id="quantites_granulaires">
+				{% if d.rooms_data|length > 0 %}
+					{% for room in d.rooms_data %}
+						{% if room.type_ressource == 1 %}
+							<div class="E" id="qte_room_{{ room.id }}">
+								<label>{{ room.name }} - {{ trad.quantite_emprunter }}{{ trad.deux_points }}
+								<input name="quantite_empruntee[{{ room.id }}]" type="number" min="1" max="{{ room.stock_disponible }}" value="{{ room.quantite_empruntee }}">
+								{% if room.stock_disponible is not null %}
+									({{ trad.stock_disponible }}: {{ room.stock_disponible }} / {{ room.inventaire_qte }})
+								{% endif %}
+								</label>
+							</div>
+						{% else %}
+							<input name="quantite_empruntee[{{ room.id }}]" type="hidden" value="1">
+						{% endif %}
+					{% endfor %}
+				{% else %}
 					{% if d.type_ressource == 1 %}
 						<div class="E">
 							<label>{{trad.quantite_emprunter}}{{trad.deux_points}}
@@ -214,6 +231,8 @@
 					{% else %}
 						<input name="quantite_empruntee" type="hidden" value="1" />
 					{% endif %}
+				{% endif %}
+				</div>
 
 				<!-- Clef -->
 					{% if d.active_cle == "y" %}
@@ -577,6 +596,38 @@
 		});
 	}
 
+	var roomTypes = typeof roomTypesJSON !== 'undefined' ? roomTypesJSON : JSON.parse('{{ d.roomTypesJSON|raw }}');
+	var roomNames = typeof roomNamesJSON !== 'undefined' ? roomNamesJSON : JSON.parse('{{ d.roomNamesJSON|raw }}');
+	var roomStocks = typeof roomStocksJSON !== 'undefined' ? roomStocksJSON : JSON.parse('{{ d.roomStocksJSON|raw }}');
+
+	function updateQuantiteFields(roomsSelect) {
+		var container = document.getElementById('quantites_granulaires');
+		if (!container) return;
+		var html = '';
+		var hasAny = false;
+		for (var i = 0; i < roomsSelect.options.length; i++) {
+			if (roomsSelect.options[i].selected) {
+				var rid = roomsSelect.options[i].value;
+				if (roomTypes[rid] == 1) {
+					hasAny = true;
+					var qte = 1;
+					var existing = container.querySelector('input[name="quantite_empruntee[' + rid + ']"]');
+					if (existing) qte = existing.value;
+					html += '<div class="E">';
+					html += '<label>' + roomNames[rid] + ' - {{ trad.quantite_emprunter }}{{ trad.deux_points }}';
+					html += '<input name="quantite_empruntee[' + rid + ']" type="number" min="1" max="' + roomStocks[rid] + '" value="' + qte + '">';
+					html += '</label></div>';
+				} else {
+					html += '<input name="quantite_empruntee[' + rid + ']" type="hidden" value="1">';
+				}
+			}
+		}
+		if (!html) {
+			html = '<input name="quantite_empruntee" type="hidden" value="1" />';
+		}
+		container.innerHTML = html;
+	}
+
 	function changeRooms( formObj )
 	{
 		var formObj = document.getElementById('main');
@@ -599,6 +650,7 @@
         insertChampsAdd(area,{{d.idresa}},room);
         insertTypes(area,room);
         insertDescriptionParams(area);
+		updateQuantiteFields(roomsObj);
 	}
 
 	function changeRoom( formObj)
