@@ -130,6 +130,36 @@ function grrDelEntryInConflict($room_id, $starttime, $endtime, $ignore, $repigno
 	if ($flag == 1)
 		return $result;
 }
+/**
+ * mrbsCheckFreeQte()
+ *
+ * Pour les ressources de type granulaire (type_ressource = 1),
+ * vérifie que la quantité demandée est disponible sur le créneau.
+ *
+ * $room_id          - ID de la ressource
+ * $starttime        - Début du créneau
+ * $endtime          - Fin du créneau
+ * $quantite_demandee - Quantité que l'on souhaite emprunter
+ * $ignore           - ID d'entrée à ignorer (pour modification)
+ *
+ * Returns:
+ *   true  - La quantité est disponible
+ *   false - Stock insuffisant
+ */
+function mrbsCheckFreeQte($room_id, $starttime, $endtime, $quantite_demandee, $ignore)
+{
+	$sql = "SELECT COALESCE(SUM(quantite_empruntee), 0) FROM ".TABLE_PREFIX."_entry 
+			WHERE start_time < '".$endtime."' AND end_time > '".$starttime."' 
+			AND room_id = '".$room_id."' AND supprimer = 0";
+	if ($ignore > 0)
+		$sql .= " AND id != '".$ignore."'";
+	$deja_reserve = grr_sql_query1($sql);
+	if ($deja_reserve < 0)
+		$deja_reserve = 0;
+	$total = grr_sql_query1("SELECT inventaire_qte FROM ".TABLE_PREFIX."_room WHERE id = '".$room_id."'");
+	return ($deja_reserve + $quantite_demandee <= $total);
+}
+
 /** mrbsDelEntry()
  *
  * Delete an entry, or optionally all entrys.
@@ -428,7 +458,7 @@ function grrExtractValueFromOverloadDesc($chaine,$id)
  * @param string $statut_entry
  * @param integer $keys
  */
-function mrbsCreateSingleEntry($id, $starttime, $endtime, $entry_type, $repeat_id, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data, $moderate, $rep_jour_c, $statut_entry, $keys, $courrier, $nbparticipantmax)
+function mrbsCreateSingleEntry($id, $starttime, $endtime, $entry_type, $repeat_id, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data, $moderate, $rep_jour_c, $statut_entry, $keys, $courrier, $nbparticipantmax, $quantite_empruntee = 1)
 {
 	$overload_data_string = "";
 	$overload_fields_list = mrbsOverloadGetFieldslist(0,$room_id);
@@ -451,9 +481,9 @@ function mrbsCreateSingleEntry($id, $starttime, $endtime, $entry_type, $repeat_i
 	}
 	//Hugo - Commande sql insérant la nouvelle réservation dans la base de données
 	if($id == 0 || $id == NULL)
-		$sql = "INSERT INTO ".TABLE_PREFIX."_entry (start_time, end_time, entry_type, repeat_id, room_id, create_by, beneficiaire, beneficiaire_ext, name, type, description, statut_entry, option_reservation,overload_desc, moderate, jours, clef, courrier, nbparticipantmax) VALUES ($starttime, $endtime, '".SecuChaine::ProtectDataSql($entry_type)."', $repeat_id, $room_id, '".SecuChaine::ProtectDataSql($creator)."', '".SecuChaine::ProtectDataSql($beneficiaire)."', '".SecuChaine::ProtectDataSql($beneficiaire_ext)."', '".SecuChaine::ProtectDataSql($name)."', '".SecuChaine::ProtectDataSql($type)."', '".SecuChaine::ProtectDataSql($description)."', '".SecuChaine::ProtectDataSql($statut_entry)."', '".$option_reservation."','".SecuChaine::ProtectDataSql($overload_data_string)."', ".$moderate.",".$rep_jour_c.", $keys, $courrier, '".SecuChaine::ProtectDataSql($nbparticipantmax)."' )";
+		$sql = "INSERT INTO ".TABLE_PREFIX."_entry (start_time, end_time, entry_type, repeat_id, room_id, create_by, beneficiaire, beneficiaire_ext, name, type, description, statut_entry, option_reservation,overload_desc, moderate, jours, clef, courrier, nbparticipantmax, quantite_empruntee) VALUES ($starttime, $endtime, '".SecuChaine::ProtectDataSql($entry_type)."', $repeat_id, $room_id, '".SecuChaine::ProtectDataSql($creator)."', '".SecuChaine::ProtectDataSql($beneficiaire)."', '".SecuChaine::ProtectDataSql($beneficiaire_ext)."', '".SecuChaine::ProtectDataSql($name)."', '".SecuChaine::ProtectDataSql($type)."', '".SecuChaine::ProtectDataSql($description)."', '".SecuChaine::ProtectDataSql($statut_entry)."', '".$option_reservation."','".SecuChaine::ProtectDataSql($overload_data_string)."', ".$moderate.",".$rep_jour_c.", $keys, $courrier, '".SecuChaine::ProtectDataSql($nbparticipantmax)."', '".$quantite_empruntee."' )";
 	else
-		$sql = "UPDATE ".TABLE_PREFIX."_entry SET start_time = ".$starttime.", end_time = ".$endtime.", entry_type = '".SecuChaine::ProtectDataSql($entry_type)."', repeat_id = ".$repeat_id.", room_id = ".$room_id.", create_by = '".SecuChaine::ProtectDataSql($creator)."', beneficiaire = '".SecuChaine::ProtectDataSql($beneficiaire)."', beneficiaire_ext = '".SecuChaine::ProtectDataSql($beneficiaire_ext)."', name = '".SecuChaine::ProtectDataSql($name)."', type = '".SecuChaine::ProtectDataSql($type)."', description = '".SecuChaine::ProtectDataSql($description)."', statut_entry = '".SecuChaine::ProtectDataSql($statut_entry)."', option_reservation = '".$option_reservation."' ,overload_desc = '".SecuChaine::ProtectDataSql($overload_data_string)."', moderate = ".$moderate.", jours = ".$rep_jour_c.", clef = ".$keys.", courrier = ".$courrier.", nbparticipantmax = '".SecuChaine::ProtectDataSql($nbparticipantmax)."' WHERE id = ".$id."";
+		$sql = "UPDATE ".TABLE_PREFIX."_entry SET start_time = ".$starttime.", end_time = ".$endtime.", entry_type = '".SecuChaine::ProtectDataSql($entry_type)."', repeat_id = ".$repeat_id.", room_id = ".$room_id.", create_by = '".SecuChaine::ProtectDataSql($creator)."', beneficiaire = '".SecuChaine::ProtectDataSql($beneficiaire)."', beneficiaire_ext = '".SecuChaine::ProtectDataSql($beneficiaire_ext)."', name = '".SecuChaine::ProtectDataSql($name)."', type = '".SecuChaine::ProtectDataSql($type)."', description = '".SecuChaine::ProtectDataSql($description)."', statut_entry = '".SecuChaine::ProtectDataSql($statut_entry)."', option_reservation = '".$option_reservation."' ,overload_desc = '".SecuChaine::ProtectDataSql($overload_data_string)."', moderate = ".$moderate.", jours = ".$rep_jour_c.", clef = ".$keys.", courrier = ".$courrier.", nbparticipantmax = '".SecuChaine::ProtectDataSql($nbparticipantmax)."', quantite_empruntee = '".$quantite_empruntee."' WHERE id = ".$id."";
 
 	if (grr_sql_command($sql) < 0)
 		fatal_error(0, "Requete error  = ".$sql);
@@ -514,10 +544,10 @@ function mrbsCreateRepeatEntry($starttime, $endtime, $rep_type, $rep_enddate, $r
 	return grr_sql_insert_id();
 }
 
-function compareEntrys($id, $starttime, $endtime, $entry_type, $repeat_id, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data, $moderate, $rep_jour_c, $statut_entry, $keys, $courrier, $nbparticipantmax)
+function compareEntrys($id, $starttime, $endtime, $entry_type, $repeat_id, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data, $moderate, $rep_jour_c, $statut_entry, $keys, $courrier, $nbparticipantmax, $quantite_empruntee = 1)
 {
 	$differences = "";
-	$sql = "SELECT name, beneficiaire, description, start_time, end_time, type, room_id, entry_type, repeat_id, option_reservation, jours, create_by, beneficiaire_ext, statut_entry, clef, courrier, nbparticipantmax FROM ".TABLE_PREFIX."_entry WHERE id=$id";
+	$sql = "SELECT name, beneficiaire, description, start_time, end_time, type, room_id, entry_type, repeat_id, option_reservation, jours, create_by, beneficiaire_ext, statut_entry, clef, courrier, nbparticipantmax, quantite_empruntee FROM ".TABLE_PREFIX."_entry WHERE id=$id";
 	$res = grr_sql_query($sql);
 	if (!$res)
 		fatal_error(1, grr_sql_error());
@@ -564,6 +594,9 @@ function compareEntrys($id, $starttime, $endtime, $entry_type, $repeat_id, $room
 
 	if($nbparticipantmax <> $row[16])
 		$differences .= "Nb participant max: ".$row[16]." => ".$nbparticipantmax."<br>";
+
+	if($quantite_empruntee <> $row[17])
+		$differences .= "Quantité empruntée: ".$row[17]." => ".$quantite_empruntee."<br>";
 
 	return $differences;
 }
@@ -706,7 +739,7 @@ function mrbsGetRepeatEntryList($time, $enddate, $rep_type, $rep_opt, $max_ittr,
  *   0        - An error occured while inserting the entry
  *   non-zero - The entry's ID
  */
-function mrbsCreateRepeatingEntrys($starttime, $endtime, $rep_type, $rep_enddate, $rep_opt, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $rep_num_weeks, $option_reservation,$overload_data, $moderate, $rep_jour_c, $courrier, $nbparticipantmax, $rep_month_abs1, $rep_month_abs2, $ignore=array())
+function mrbsCreateRepeatingEntrys($starttime, $endtime, $rep_type, $rep_enddate, $rep_opt, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $rep_num_weeks, $option_reservation,$overload_data, $moderate, $rep_jour_c, $courrier, $nbparticipantmax, $rep_month_abs1, $rep_month_abs2, $ignore=array(), $quantite_empruntee = 1)
 {
 	global $max_rep_entrys, $id_first_resa;
 	$area = mrbsGetRoomArea($room_id);
@@ -718,7 +751,7 @@ function mrbsCreateRepeatingEntrys($starttime, $endtime, $rep_type, $rep_enddate
 		return 0;
 	if (empty($reps))
 	{
-		mrbsCreateSingleEntry(0, $starttime, $endtime, 0, 0, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data,$moderate, $rep_jour_c,"-", 0, $courrier, $nbparticipantmax);
+		mrbsCreateSingleEntry(0, $starttime, $endtime, 0, 0, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data,$moderate, $rep_jour_c,"-", 0, $courrier, $nbparticipantmax, $quantite_empruntee);
 		$id_first_resa = grr_sql_insert_id();
 		return;
 	}
@@ -729,7 +762,7 @@ function mrbsCreateRepeatingEntrys($starttime, $endtime, $rep_type, $rep_enddate
 		$total_reps = count($reps);
 		for($i = 0; $i < $total_reps; $i++)
 		{
-			mrbsCreateSingleEntry(0, $reps[$i], $reps[$i] + $diff, 1, $ent, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data, $moderate, $rep_jour_c,"-", 0, $courrier, $nbparticipantmax);
+			mrbsCreateSingleEntry(0, $reps[$i], $reps[$i] + $diff, 1, $ent, $room_id, $creator, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation,$overload_data, $moderate, $rep_jour_c,"-", 0, $courrier, $nbparticipantmax, $quantite_empruntee);
 			$id_new_resa = grr_sql_insert_id();
 				// s'il s'agit d'une modification d'une ressource déjà modérée et acceptée : on met à jour les infos dans la table ".TABLE_PREFIX."_entry_moderate
 			if ($moderate == 2)

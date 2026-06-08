@@ -73,6 +73,12 @@
                 <td>{{champC.valeur}}</td>
             </tr>
             {% endfor %}
+            {% if resa.type_ressource == 1 and resa.quantite_empruntee > 1 %}
+            <tr>
+                <th>{{trad.quantite_empruntee}}{{trad.deux_points}}</th>
+                <td>{{resa.quantite_empruntee}}</td>
+            </tr>
+            {% endif %}
             {% if resa.clef == 1 %}
             <tr>
                 <th>{{trad.clef}}{{trad.deux_points}}</th>

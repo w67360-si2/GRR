@@ -4636,6 +4636,10 @@ function affichage_resa_planning_complet($ofl, $vue, $resa, $heures)
 		}
 	}
 
+	// Quantité (ressources granulaires)
+	if (isset($resa[22]) && $resa[22] == 1 && isset($resa[21]) && $resa[21] > 1)
+		$affichage .= "<span class=\"label label-default\">x".$resa[21]."</span> ";
+
 	// Emprunte
 	if($resa[7] != "-")
 		$affichage .= "<i class=\"icone fa-solid fa-hand\" title=\"".get_vocab("ressource_actuellement_empruntee")."\"></i> ";
@@ -4758,6 +4762,10 @@ function affichage_resa_info_bulle($ofl, $vue, $resa, $heures)
 		$resa[8] != ""
 	  )
 		$affichage .= htmlspecialchars($resa[8],ENT_NOQUOTES)."\n";
+
+	// Quantité (ressources granulaires)
+	if (isset($resa[22]) && $resa[22] == 1 && isset($resa[21]) && $resa[21] > 1)
+		$affichage .= get_vocab("quantite_empruntee")." : ".$resa[21]."\n";
 
 	// Champs Additionnels
     // la ressource associée à la réservation :

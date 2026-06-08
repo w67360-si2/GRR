@@ -201,6 +201,20 @@
 						<input name="nbparticipantmax" type="hidden" value="0" />	
 					{% endif %}
 
+				<!-- Quantité (ressources granulaires) -->
+					{% if d.type_ressource == 1 %}
+						<div class="E">
+							<label>{{trad.quantite_emprunter}}{{trad.deux_points}}
+							<input name="quantite_empruntee" type="number" min="1" max="{{ d.stock_disponible }}" value="{{ d.quantite_empruntee }}" >
+							{% if d.stock_disponible is not null %}
+								({{ trad.stock_disponible }}: {{ d.stock_disponible }} / {{ d.inventaire_qte }})
+							{% endif %}
+							</label>
+						</div>
+					{% else %}
+						<input name="quantite_empruntee" type="hidden" value="1" />
+					{% endif %}
+
 				<!-- Clef -->
 					{% if d.active_cle == "y" %}
 						<div class="E">

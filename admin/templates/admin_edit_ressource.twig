@@ -138,6 +138,18 @@
 
 							{{ form.input('capacity', trad.capacity, ressource.capacity, {classGroup: 'col-sm-12', classLabel: 'col-sm-8', classDivInput: 'col-sm-4 control-label', type: 'number'}) }}
 
+							<div class="form-group row col-sm-12">
+								<label class="col col-sm-8" for="type_ressource">{{ trad.type_ressource }}</label>
+								<div class="col col-sm-4">
+									<input type="radio" name="type_ressource" value="0" id="type_std" onchange="toggleInventaireQte()" {% if ressource.type_ressource == '0' %} checked {% endif %} /> <label for="type_std">{{ trad.type_ressource_standard }}</label><br>
+									<input type="radio" name="type_ressource" value="1" id="type_grn" onchange="toggleInventaireQte()" {% if ressource.type_ressource == '1' %} checked {% endif %} /> <label for="type_grn">{{ trad.type_ressource_granulaire }}</label>
+								</div>
+							</div>
+
+							<div id="div_inventaire_qte" style="{% if ressource.type_ressource != '1' %}display:none;{% endif %}">
+								{{ form.input('inventaire_qte', trad.inventaire_qte, ressource.inventaire_qte, {classGroup: 'col-sm-12', classLabel: 'col-sm-8', classDivInput: 'col-sm-4 control-label', type: 'number'}) }}
+							</div>
+
 							{% if trad.dDroitsDomaine  >= 4 and trad.dDroitsRessource  >= 4 %}
 								{{ form.input('max_booking', trad.msg_max_booking, ressource.max_booking, {classGroup: 'col-sm-12', classLabel: 'col-sm-8', classDivInput: 'col-sm-4 control-label', type: 'number'}) }}
 							{% else %}
@@ -262,6 +274,13 @@
 {% block javascript %}
 	<script type="text/javascript" src="../js/functions.min.js?v={{d.versionCache}}"></script>
 	<script>
+		function toggleInventaireQte() {
+			var grn = document.getElementById('type_grn');
+			var div = document.getElementById('div_inventaire_qte');
+			if (grn && div) {
+				div.style.display = grn.checked ? '' : 'none';
+			}
+		}
 		$(function () {
 			// Autres scripts...
 		}); 

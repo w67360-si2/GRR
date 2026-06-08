@@ -96,6 +96,7 @@ $form_vars = array(
   'del_entry_in_conflict' => 'string',
   'skip_entry_in_conflict' => 'string',
   'nbparticipantmax'   => 'int',
+  'quantite_empruntee' => 'int',
   'vacances'           => 'int', // 0: ts les jours, 1: jours de vacances scolaires, 2: jours hors vacances
   'feries'             => 'int',  // 0: ts les jours, 1: jours fériés, 2: jours ouvrés
   'start_hour'         => 'int',
@@ -217,6 +218,8 @@ try {
     }
     if(!isset($nbparticipantmax))
         $nbparticipantmax = 0;
+    if(!isset($quantite_empruntee) || $quantite_empruntee < 1)
+        $quantite_empruntee = 1;
     // les champs additionnels dépendant du domaine, on ne peut les traiter avant 
     $overload_data = array();
     $overload_fields_list = mrbsOverloadGetFieldslist($area);
@@ -664,6 +667,39 @@ try {
     if ($conflits != ''){
         throw new Exception('conflit');
     }
+    // Vérification de disponibilité pour les ressources granulaires
+    foreach ($rooms as $room_id)
+    {
+        $type_ressource = grr_sql_query1("SELECT type_ressource FROM ".TABLE_PREFIX."_room WHERE id='".$room_id."'");
+        if ($type_ressource == 1)
+        {
+            if ($rep_type != 0 && !empty($reps))
+            {
+                $diff = $end_time - $start_time;
+                if (count($reps) < $max_rep_entrys)
+                {
+                    for ($i = 0; $i < count($reps); $i++)
+                    {
+                        if (!mrbsCheckFreeQte($room_id, $reps[$i], $reps[$i] + $diff, $quantite_empruntee, $ignore_id))
+                        {
+                            $d['err_type'] = 'stock_insuffisant';
+                            $d['err_msg'] = get_vocab('stock_insuffisant');
+                            throw new Exception('erreur');
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (!mrbsCheckFreeQte($room_id, $start_time, $end_time - 1, $quantite_empruntee, $ignore_id))
+                {
+                    $d['err_type'] = 'stock_insuffisant';
+                    $d['err_msg'] = get_vocab('stock_insuffisant');
+                    throw new Exception('erreur');
+                }
+            }
+        }
+    }
     // pas de conflit, pas d'erreur, on peut envisager de poser les réservations...
     // quelques vérifications supplémentaires
     // reste-t-il qqch à réserver ?
@@ -741,7 +777,7 @@ try {
 		}
 		if ($rep_type != 0) // Réservation périodique
 		{
-			$id_first_resa = mrbsCreateRepeatingEntrys($start_time, $end_time, $rep_type, $rep_enddate, $rep_opt, $room_id, $create_by, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $rep_num_weeks, $option_reservation, $overload_data, $entry_moderate, $rep_jour_c, $courrier, $nbparticipantmax, $rep_month_abs1, $rep_month_abs2, $ignore);
+			$id_first_resa = mrbsCreateRepeatingEntrys($start_time, $end_time, $rep_type, $rep_enddate, $rep_opt, $room_id, $create_by, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $rep_num_weeks, $option_reservation, $overload_data, $entry_moderate, $rep_jour_c, $courrier, $nbparticipantmax, $rep_month_abs1, $rep_month_abs2, $ignore, $quantite_empruntee);
 			if (Settings::get("automatic_mail") == 1 && $envoy_notif == 1)
 			{
                 if (isset($id_first_resa) && ($id_first_resa != 0))
@@ -776,8 +812,8 @@ try {
 			else
 				$entry_type = 0;
 			if($id > 0)
-				$differenceAvAp = compareEntrys($id, $start_time, $end_time, $entry_type, $repeat_id, $room_id, $create_by, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation, $overload_data, $entry_moderate, $rep_jour_c, $statut_entry, $clef, $courrier,$nbparticipantmax);
-			mrbsCreateSingleEntry($id, $start_time, $end_time, $entry_type, $repeat_id, $room_id, $create_by, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation, $overload_data, $entry_moderate, $rep_jour_c, $statut_entry, $clef, $courrier,$nbparticipantmax);
+				$differenceAvAp = compareEntrys($id, $start_time, $end_time, $entry_type, $repeat_id, $room_id, $create_by, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation, $overload_data, $entry_moderate, $rep_jour_c, $statut_entry, $clef, $courrier,$nbparticipantmax, $quantite_empruntee);
+			mrbsCreateSingleEntry($id, $start_time, $end_time, $entry_type, $repeat_id, $room_id, $create_by, $beneficiaire, $beneficiaire_ext, $name, $type, $description, $option_reservation, $overload_data, $entry_moderate, $rep_jour_c, $statut_entry, $clef, $courrier,$nbparticipantmax, $quantite_empruntee);
 			if($id == 0 || $id == NULL) // Création réservation unique
 			{
 				$id = grr_sql_insert_id();

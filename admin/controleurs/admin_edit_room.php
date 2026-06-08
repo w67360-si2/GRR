@@ -73,6 +73,9 @@ $change_room = isset($_POST["change_room"]) ? $_POST["change_room"] : NULL;
 $type_affichage_reser = isset($_POST["type_affichage_reser"]) ? $_POST["type_affichage_reser"] : NULL;
 $moderate = isset($_POST['moderate']) ? $_POST["moderate"] : NULL;
 $confidentiel_resa  = isset($_POST["confidentiel_resa"]) ? 1 : 0;
+$type_ressource = isset($_POST["type_ressource"]) ? intval($_POST["type_ressource"]) : 0;
+$inventaire_qte = isset($_POST["inventaire_qte"]) ? intval($_POST["inventaire_qte"]) : 0;
+if ($inventaire_qte < 0) $inventaire_qte = 0;
 
 if(!isset($_POST["area_order"]) || empty($_POST["area_order"]))
 	$area_order = 0;
@@ -202,7 +205,9 @@ if (isset($change_room))
 		max_booking='".$max_booking."',
 		moderate='".$moderate."',
 		statut_room='".$statut_room."',
-		confidentiel_resa='".$confidentiel_resa."'
+		confidentiel_resa='".$confidentiel_resa."',
+		type_ressource='".$type_ressource."',
+		inventaire_qte='".$inventaire_qte."'
 		WHERE id=$room";
 		if (grr_sql_command($sql) < 0)
 		{
@@ -238,7 +243,9 @@ if (isset($change_room))
 		max_booking='".$max_booking."',
 		moderate='".$moderate."',
 		statut_room='".$statut_room."',
-		confidentiel_resa='".$confidentiel_resa."'";
+		confidentiel_resa='".$confidentiel_resa."',
+		type_ressource='".$type_ressource."',
+		inventaire_qte='".$inventaire_qte."'";
 		if (grr_sql_command($sql) < 0)
 			fatal_error(1, "<p>" . grr_sql_error());
 		$room = mysqli_insert_id($GLOBALS['db_c']);
@@ -354,6 +361,8 @@ else
 	$row['active_participant'] = 0;
 	$row['inscription_participant'] = 1;
 	$row['nb_participant_defaut'] = 0;
+	$row['type_ressource'] = 0;
+	$row['inventaire_qte'] = 0;
 	$area_name = grr_sql_query1("select area_name from ".TABLE_PREFIX."_area where id='".$area_id."'");
 
 	$typeAction = get_vocab("addroom");
@@ -400,6 +409,10 @@ get_vocab_admin("type_affichage_reservation");
 get_vocab_admin("affichage_reservation_duree");
 get_vocab_admin("affichage_reservation_date_heure");
 get_vocab_admin("capacity");
+get_vocab_admin("type_ressource");
+get_vocab_admin("type_ressource_standard");
+get_vocab_admin("type_ressource_granulaire");
+get_vocab_admin("inventaire_qte");
 get_vocab_admin("msg_max_booking");
 get_vocab_admin("delais_max_resa_room");
 get_vocab_admin("delais_min_resa_room");

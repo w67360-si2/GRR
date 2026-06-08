@@ -1479,6 +1479,9 @@ function execute_maj4($version_old_bdd, $version_grr_bdd)
 
 		$result_inter .= traiteRequete("ALTER TABLE ".TABLE_PREFIX."_area ADD description_breve SMALLINT (1)  DEFAULT '1' AFTER upload_file;");
 		$result_inter .= traiteRequete("ALTER TABLE ".TABLE_PREFIX."_area ADD description_complete SMALLINT (1)  DEFAULT '0' AFTER description_breve;");
+		$result_inter .= traiteRequete("ALTER TABLE ".TABLE_PREFIX."_room ADD type_ressource TINYINT(1) DEFAULT 0 AFTER show_comment;");
+		$result_inter .= traiteRequete("ALTER TABLE ".TABLE_PREFIX."_room ADD inventaire_qte INT(11) DEFAULT 0 AFTER type_ressource;");
+		$result_inter .= traiteRequete("ALTER TABLE ".TABLE_PREFIX."_entry ADD quantite_empruntee INT(11) DEFAULT 1 AFTER nbparticipantmax;");
 
 		if(Settings::get('remplissage_description_breve') != "")
 			$result_inter .= traiteRequete("UPDATE ".TABLE_PREFIX."_area SET description_breve = '".Settings::get('remplissage_description_breve')."' WHERE 1;");

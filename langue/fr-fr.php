@@ -355,6 +355,14 @@ $vocab["cantDeleteFileComm"] = "existant.
 Vous devez modifier les permissions sur ce fichier puis recharger cette page.";
 $vocab["capacity"] = "Nombre de personnes maximum autorisé dans la salle (0 s'il ne s'agit pas d'une salle)";
 $vocab["capacity_2"] = "Capacité : ";
+$vocab["type_ressource"] = "Type de ressource";
+$vocab["type_ressource_standard"] = "Standard (salle)";
+$vocab["type_ressource_granulaire"] = "Granulaire (quantité)";
+$vocab["inventaire_qte"] = "Quantité totale (stock)";
+$vocab["quantite_emprunter"] = "Quantité à emprunter";
+$vocab["stock_disponible"] = "Disponible";
+$vocab["quantite_empruntee"] = "Quantité empruntée";
+$vocab["stock_insuffisant"] = "Stock insuffisant pour la quantité demandée sur ce créneau.";
 $vocab["captcha_incorrect"] = "Captcha incorrect !";
 $vocab["captcha_utiliser"] = "Utiliser le captcha";
 $vocab["cas_code_fonction"] = "Code de la fonction";

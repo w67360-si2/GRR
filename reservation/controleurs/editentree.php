@@ -246,6 +246,8 @@ $delais_option_reservation = isset($Room['delais_option_reservation'])? $Room['d
 $qui_peut_reserver_pour = isset($Room['qui_peut_reserver_pour'])? $Room['qui_peut_reserver_pour']: 5;
 $d['active_cle'] = isset($Room['active_cle'])? $Room['active_cle']: -1;
 $d['active_ressource_empruntee'] = isset($Room['active_ressource_empruntee'])? $Room['active_ressource_empruntee']:"y";
+$d['type_ressource'] = isset($Room['type_ressource'])? $Room['type_ressource']: 0;
+$d['inventaire_qte'] = isset($Room['inventaire_qte'])? $Room['inventaire_qte']: 0;
 $periodiciteConfig = Settings::get("periodicite");
 $longueur_liste_ressources_max = Settings::get("longueur_liste_ressources_max");
 if ($longueur_liste_ressources_max == '')
@@ -369,8 +371,9 @@ if (isset($id) && $id !=0) // édition d'une réservation existante
   $jours_c = $row['jours'];
   $d['clef'] = $row['clef'];
   $d['courrier'] = $row['courrier'];
-  $d['nbparticipantmax'] = $row['nbparticipantmax'];
-  $modif_option_reservation = 'n';
+	$d['nbparticipantmax'] = $row['nbparticipantmax'];
+	$d['quantite_empruntee'] = isset($row['quantite_empruntee'])? $row['quantite_empruntee']: 1;
+	$modif_option_reservation = 'n';
 
   if ($entry_type >= 1) // entrée associée à une périodicité
   {
@@ -455,6 +458,7 @@ elseif(isset($Err) && $Err == 'y') // traitement d'une erreur sur une nouvelle r
     $rep_day[6] = $rep_opt[6] != '0';
   }
   $d['etype']   = isset($type)? $type : 0;
+  $d['quantite_empruntee'] = isset($_POST['quantite_empruntee'])? intval($_POST['quantite_empruntee']) : 1;
 }
 else // nouvelle réservation
 {
@@ -511,6 +515,7 @@ else // nouvelle réservation
   $option_reservation = -1;
   $modif_option_reservation = 'y';
   $d['nbparticipantmax'] = $Room['nb_participant_defaut'];
+  $d['quantite_empruntee'] = 1;
 }
 
 // fin nouvelle réservation
@@ -564,6 +569,24 @@ $d['moderate'] = isset($Room['moderate'])? $Room['moderate']: -1;
 $d['domaine'] = $area_id;
 $d['roomid'] = $room_id;
 $d['idresa'] = (isset($id))? $id : 0;
+
+// Informations de stock disponibles pour les ressources granulaires
+if ($d['type_ressource'] == 1 && isset($start_time) && isset($end_time)) {
+	$ignore_id = ($id > 0) ? $id : 0;
+	$sql_stock = "SELECT COALESCE(SUM(quantite_empruntee), 0) FROM ".TABLE_PREFIX."_entry 
+		WHERE start_time < '".$end_time."' AND end_time > '".$start_time."' 
+		AND room_id = '".$room_id."' AND supprimer = 0";
+	if ($ignore_id > 0)
+		$sql_stock .= " AND id != '".$ignore_id."'";
+	$deja_reserve = grr_sql_query1($sql_stock);
+	if ($deja_reserve < 0)
+		$deja_reserve = 0;
+	$d['stock_utilise'] = $deja_reserve;
+	$d['stock_disponible'] = $d['inventaire_qte'] - $deja_reserve;
+} else {
+	$d['stock_utilise'] = null;
+	$d['stock_disponible'] = null;
+}
 
 
 /** éléments à insérer dans le formulaire
