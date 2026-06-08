@@ -878,7 +878,7 @@ function verif_version()
 	global $version_bdd;
 	$version_bdd_fichier = $version_bdd;
 	$version_bdd_base = Settings::get("version");
-	if (strpos($version_bdd_base,".") || $version_bdd_base == '' || $version_bdd_fichier > $version_bdd_base) // strpos . pour ancienne numérotation
+	if (strpos($version_bdd_base,".") || $version_bdd_base == '' || intval($version_bdd_fichier) > intval($version_bdd_base)) // strpos . pour ancienne numérotation
 		return true;
 	else
 		return false;
